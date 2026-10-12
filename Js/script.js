@@ -1,0 +1,212 @@
+const inputBusca = document.getElementById('busca-input');
+const cards = document.querySelectorAll('#cards .card');
+const semResultados = document.getElementById('sem-resultados');
+const contador = document.getElementById('contador');
+
+function atualizarContador() {
+    const visiveis = document.querySelectorAll('#cards .card:not([hidden]):not(.card-oculto)').length;
+
+    contador.textContent = visiveis === 1
+        ? '1 unidade encontrada'
+        : visiveis + ' unidades encontradas';
+}
+function filtrarCards() {
+    const termo = inputBusca.value.trim().toLowerCase();
+    let visiveis = 0;
+
+    cards.forEach((card) => {
+        const corresponde = card.textContent.toLowerCase().includes(termo);
+        card.hidden = !corresponde;
+        if (corresponde) visiveis++;
+    });
+
+       if (semResultados) {
+        semResultados.hidden = visiveis > 0;
+    }
+
+    atualizarContador();
+}
+
+    atualizarContador();
+
+
+
+if (inputBusca) {
+    inputBusca.addEventListener('input', filtrarCards);
+    inputBusca.addEventListener('search', filtrarCards);
+}
+
+//Modal Cards
+const modal = document.getElementById('modal-unidade');
+const modalImagem = document.getElementById('modal-imagem');
+const modalNome = document.getElementById('modal-nome');
+const modalEndereco = document.getElementById('modal-endereco');
+const modalHorario = document.getElementById('modal-horario');
+const modalMapa = document.getElementById('modal-mapa');
+const modalFechar = document.getElementById('modal-fechar');
+const listaCards = document.getElementById('cards');
+const modalStatus = document.getElementById('modal-status');
+const modalTelefone = document.getElementById('modal-telefone');
+
+listaCards.addEventListener('click', (evento) => {
+    const card = evento.target.closest('.card');
+    if (!card) return;
+
+    const imagem = card.querySelector('.imagem-card img');
+    const nome = card.querySelector('.title-card p').textContent;
+    const linhas = card.querySelectorAll('.linha-cards span');
+    const endereco = linhas[0].textContent;
+    const horario = linhas[1].textContent;
+    const telefone = linhas[2].textContent;
+
+    modalImagem.src = imagem.src;
+    modalImagem.alt = imagem.alt;
+    modalNome.textContent = nome;
+    modalEndereco.textContent = endereco;
+    modalHorario.textContent = horario;
+    modalTelefone.textContent = telefone;
+
+    const selo = card.querySelector('.selo');
+    modalStatus.textContent = selo.textContent;
+    modalStatus.className = 'selo-modal selo-' + card.dataset.status;
+
+    //Google Maps
+    modalMapa.href =
+        'https://www.google.com/maps/search/?api=1&query=' +
+        encodeURIComponent(nome + ' ' + endereco);
+
+    modal.showModal();
+});
+
+modalFechar.addEventListener('click', () => {
+    modal.close();
+});
+
+modal.addEventListener('click', (evento) => {
+    if (evento.target === modal) {
+        modal.close();
+    }
+});
+
+//Status da Unidade
+function obterStatus(unidade, agora = new Date()) {
+    const dia = agora.getDay();
+    const horaAtual = agora.getHours() + agora.getMinutes() / 60;
+
+    if (!unidade.dias.includes(dia)) return 'fechado';
+    if (horaAtual < unidade.abre || horaAtual >= unidade.fecha) return 'fechado';
+
+    if (unidade.fecha !== 24 && unidade.fecha - horaAtual <= 1) return 'fecha-em-breve';
+
+    return 'aberto';
+}
+
+function unidadeDoCard(card) {
+    return unidades.find((u) => u.id === Number(card.dataset.id));
+}
+
+//Selos de disponibilidade
+function atualizarSelos() {
+    document.querySelectorAll('.card').forEach((card) => {
+        const unidade = unidadeDoCard(card);
+        if (!unidade) return;
+
+        const status = obterStatus(unidade);
+        card.dataset.status = status;
+
+        let selo = card.querySelector('.selo');
+        if (!selo) {
+            selo = document.createElement('span');
+            card.querySelector('.imagem-card').appendChild(selo);
+        }
+
+        selo.className = 'selo selo-' + status;
+
+        if (status === 'aberto') selo.textContent = 'Aberto agora';
+        if (status === 'fechado') selo.textContent = 'Fechado';
+        if (status === 'fecha-em-breve') selo.textContent = 'Fecha às ' + unidade.fecha + 'h';
+    });
+}
+
+atualizarSelos();
+setInterval(atualizarSelos, 60000);
+
+//Filtro de Prioridade
+const botaoPrioridade = document.getElementById('btn-prioridade');
+const containerCards = document.getElementById('cards');
+
+function pesoPrioridade(unidade, status) {
+    if (status === 'fechado') return 3;
+    if (unidade.abre === 0 && unidade.fecha === 24) return 0;  // 24h aberta: topo
+    if (status === 'aberto') return 1;
+    return 2;  // fecha em breve
+}
+
+function aplicarPrioridade(ativa) {
+    const cards = Array.from(containerCards.querySelectorAll('.card'));
+
+    cards.sort((a, b) => {
+        const ua = unidadeDoCard(a);
+        const ub = unidadeDoCard(b);
+
+        if (!ativa) return ua.id - ub.id;
+
+        return pesoPrioridade(ua, a.dataset.status) - pesoPrioridade(ub, b.dataset.status)
+            || ua.id - ub.id;
+    });
+
+    cards.forEach((card) => {
+        containerCards.appendChild(card);
+        card.classList.toggle('card-oculto', ativa && card.dataset.status === 'fechado');
+    });
+        atualizarContador();
+}
+
+botaoPrioridade.addEventListener('click', () => {
+    const ativa = botaoPrioridade.getAttribute('aria-pressed') !== 'true';
+
+    botaoPrioridade.setAttribute('aria-pressed', ativa);
+    botaoPrioridade.textContent = ativa
+        ? 'Mostrar todas as unidades'
+        : 'Preciso de atendimento agora';
+
+    aplicarPrioridade(ativa);
+});
+
+// ── Ordenar alfabeticamente (toggle: padrão → A→Z → Z→A → padrão) ──────
+const btnAlfabetico = document.getElementById('btn-alfabetico');
+const iconeOrdenar  = btnAlfabetico.querySelector('.icone-ordenar');
+
+const estados = [
+    { ordem: null,  label: 'A→Z', ariaLabel: 'Ordenar unidades de A a Z',    pressed: false },
+    { ordem: 'az',  label: 'A→Z', ariaLabel: 'Ordenar unidades de Z a A',    pressed: true  },
+    { ordem: 'za',  label: 'Z→A', ariaLabel: 'Remover ordenação alfabética', pressed: true  },
+];
+let estadoIdx = 0;
+
+function nomePorCard(card) {
+    return card.querySelector('.title-card p').textContent.trim();
+}
+
+btnAlfabetico.addEventListener('click', () => {
+    estadoIdx = (estadoIdx + 1) % estados.length;
+    const { ordem, label, ariaLabel, pressed } = estados[estadoIdx];
+
+    const cardsArr = Array.from(containerCards.querySelectorAll('.card'));
+
+    if (ordem === null) {
+        cardsArr.sort((a, b) => Number(a.dataset.id) - Number(b.dataset.id));
+    } else if (ordem === 'az') {
+        cardsArr.sort((a, b) => nomePorCard(a).localeCompare(nomePorCard(b), 'pt-BR'));
+    } else {
+        cardsArr.sort((a, b) => nomePorCard(b).localeCompare(nomePorCard(a), 'pt-BR'));
+    }
+
+    cardsArr.forEach(card => containerCards.appendChild(card));
+
+    iconeOrdenar.textContent = label;
+    btnAlfabetico.setAttribute('aria-pressed', String(pressed));
+    btnAlfabetico.setAttribute('aria-label', ariaLabel);
+
+    atualizarContador();
+});
