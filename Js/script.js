@@ -9,20 +9,29 @@ function atualizarContador() {
     contador.textContent = visiveis === 1
         ? '1 unidade encontrada'
         : visiveis + ' unidades encontradas';
-}
-function filtrarCards() {
-    const termo = inputBusca.value.trim().toLowerCase();
-    let visiveis = 0;
 
-    cards.forEach((card) => {
-        const corresponde = card.textContent.toLowerCase().includes(termo);
-        card.hidden = !corresponde;
-        if (corresponde) visiveis++;
-    });
-
-       if (semResultados) {
+    if (semResultados) {
         semResultados.hidden = visiveis > 0;
     }
+}
+
+let tipoAtual = 'todos';
+let ordemAtual = 'padrao';
+let prioridadeAtiva = false;
+
+function filtrarCards() {
+    const termo = inputBusca.value.trim().toLowerCase();
+
+    cards.forEach((card) => {
+        const unidade = unidadeDoCard(card);
+        const tipos = unidade
+            ? (Array.isArray(unidade.tipoUnidade) ? unidade.tipoUnidade : [unidade.tipoUnidade])
+            : [];
+        const correspondeBusca = card.textContent.toLowerCase().includes(termo);
+        const correspondeTipo = tipoAtual === 'todos' || tipos.includes(tipoAtual);
+
+        card.hidden = !correspondeBusca || !correspondeTipo;
+    });
 
     atualizarContador();
 }
@@ -36,7 +45,6 @@ if (inputBusca) {
     inputBusca.addEventListener('search', filtrarCards);
 }
 
-//Modal Cards
 const modal = document.getElementById('modal-unidade');
 const modalImagem = document.getElementById('modal-imagem');
 const modalNome = document.getElementById('modal-nome');
@@ -47,6 +55,29 @@ const modalFechar = document.getElementById('modal-fechar');
 const listaCards = document.getElementById('cards');
 const modalStatus = document.getElementById('modal-status');
 const modalTelefone = document.getElementById('modal-telefone');
+const modalVoltar = document.getElementById('modal-voltar');
+
+document.querySelectorAll('#cards .card').forEach((card) => {
+    const unidade = unidades.find((item) => item.id === Number(card.dataset.id));
+    if (!unidade) return;
+
+    const especialidades = document.createElement('div');
+    especialidades.className = 'especialidades-card';
+
+    const tituloEspecialidades = document.createElement('strong');
+    tituloEspecialidades.textContent = 'Especialidades';
+    especialidades.appendChild(tituloEspecialidades);
+
+    const listaEspecialidades = document.createElement('ul');
+    unidade.especialidades.forEach((especialidade) => {
+        const item = document.createElement('li');
+        item.textContent = especialidade;
+        listaEspecialidades.appendChild(item);
+    });
+    especialidades.appendChild(listaEspecialidades);
+
+    card.querySelector('.descricao-card').appendChild(especialidades);
+});
 
 listaCards.addEventListener('click', (evento) => {
     const card = evento.target.closest('.card');
@@ -79,6 +110,10 @@ listaCards.addEventListener('click', (evento) => {
 });
 
 modalFechar.addEventListener('click', () => {
+    modal.close();
+});
+
+modalVoltar.addEventListener('click', () => {
     modal.close();
 });
 
@@ -143,23 +178,12 @@ function pesoPrioridade(unidade, status) {
 }
 
 function aplicarPrioridade(ativa) {
-    const cards = Array.from(containerCards.querySelectorAll('.card'));
-
-    cards.sort((a, b) => {
-        const ua = unidadeDoCard(a);
-        const ub = unidadeDoCard(b);
-
-        if (!ativa) return ua.id - ub.id;
-
-        return pesoPrioridade(ua, a.dataset.status) - pesoPrioridade(ub, b.dataset.status)
-            || ua.id - ub.id;
-    });
-
-    cards.forEach((card) => {
-        containerCards.appendChild(card);
+    prioridadeAtiva = ativa;
+    containerCards.querySelectorAll('.card').forEach((card) => {
         card.classList.toggle('card-oculto', ativa && card.dataset.status === 'fechado');
     });
-        atualizarContador();
+    ordenarCards();
+    filtrarCards();
 }
 
 botaoPrioridade.addEventListener('click', () => {
@@ -173,40 +197,69 @@ botaoPrioridade.addEventListener('click', () => {
     aplicarPrioridade(ativa);
 });
 
-// ── Ordenar alfabeticamente (toggle: padrão → A→Z → Z→A → padrão) ──────
-const btnAlfabetico = document.getElementById('btn-alfabetico');
-const iconeOrdenar  = btnAlfabetico.querySelector('.icone-ordenar');
-
-const estados = [
-    { ordem: null,  label: 'A→Z', ariaLabel: 'Ordenar unidades de A a Z',    pressed: false },
-    { ordem: 'az',  label: 'A→Z', ariaLabel: 'Ordenar unidades de Z a A',    pressed: true  },
-    { ordem: 'za',  label: 'Z→A', ariaLabel: 'Remover ordenação alfabética', pressed: true  },
-];
-let estadoIdx = 0;
-
 function nomePorCard(card) {
     return card.querySelector('.title-card p').textContent.trim();
 }
 
-btnAlfabetico.addEventListener('click', () => {
-    estadoIdx = (estadoIdx + 1) % estados.length;
-    const { ordem, label, ariaLabel, pressed } = estados[estadoIdx];
-
+function ordenarCards() {
     const cardsArr = Array.from(containerCards.querySelectorAll('.card'));
 
-    if (ordem === null) {
-        cardsArr.sort((a, b) => Number(a.dataset.id) - Number(b.dataset.id));
-    } else if (ordem === 'az') {
-        cardsArr.sort((a, b) => nomePorCard(a).localeCompare(nomePorCard(b), 'pt-BR'));
-    } else {
-        cardsArr.sort((a, b) => nomePorCard(b).localeCompare(nomePorCard(a), 'pt-BR'));
-    }
+    cardsArr.sort((a, b) => {
+        if (prioridadeAtiva) {
+            const statusOrder = pesoPrioridade(unidadeDoCard(a), a.dataset.status)
+                - pesoPrioridade(unidadeDoCard(b), b.dataset.status);
+            if (statusOrder !== 0) return statusOrder;
+        }
+
+        if (ordemAtual === 'az') {
+            return nomePorCard(a).localeCompare(nomePorCard(b), 'pt-BR', { sensitivity: 'base' });
+        }
+        if (ordemAtual === 'za') {
+            return nomePorCard(b).localeCompare(nomePorCard(a), 'pt-BR', { sensitivity: 'base' });
+        }
+        return Number(a.dataset.id) - Number(b.dataset.id);
+    });
 
     cardsArr.forEach(card => containerCards.appendChild(card));
+}
 
-    iconeOrdenar.textContent = label;
-    btnAlfabetico.setAttribute('aria-pressed', String(pressed));
-    btnAlfabetico.setAttribute('aria-label', ariaLabel);
+const btnFiltros = document.getElementById('btn-filtros');
+const modalFiltros = document.getElementById('modal-filtros');
+const fecharFiltros = document.getElementById('fechar-filtros');
+const formFiltros = document.getElementById('form-filtros');
+const filtroOrdenacao = document.getElementById('filtro-ordenacao');
+const filtroTipo = document.getElementById('filtro-tipo');
+const limparFiltros = document.getElementById('limpar-filtros');
 
-    atualizarContador();
+btnFiltros.addEventListener('click', () => {
+    filtroOrdenacao.value = ordemAtual;
+    filtroTipo.value = tipoAtual;
+    modalFiltros.showModal();
+});
+
+fecharFiltros.addEventListener('click', () => {
+    modalFiltros.close();
+});
+
+modalFiltros.addEventListener('click', (evento) => {
+    if (evento.target === modalFiltros) modalFiltros.close();
+});
+
+formFiltros.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    ordemAtual = filtroOrdenacao.value;
+    tipoAtual = filtroTipo.value;
+    ordenarCards();
+    filtrarCards();
+    modalFiltros.close();
+});
+
+limparFiltros.addEventListener('click', () => {
+    ordemAtual = 'padrao';
+    tipoAtual = 'todos';
+    filtroOrdenacao.value = ordemAtual;
+    filtroTipo.value = tipoAtual;
+    ordenarCards();
+    filtrarCards();
+    modalFiltros.close();
 });

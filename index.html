@@ -78,13 +78,13 @@
 
             <div class="barra-ordenacao">
                 <p class="contador" id="contador" role="status" aria-live="polite"></p>
-                <button type="button" class="btn-alfabetico" id="btn-alfabetico" aria-pressed="false" aria-label="Ordenar unidades A→Z">
+                <button type="button" class="btn-filtros" id="btn-filtros" aria-haspopup="dialog" aria-controls="modal-filtros">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M3 6h18M7 12h10M11 18h2"/>
                     </svg>
-                    <span class="icone-ordenar">A→Z</span>
+                    <span>Filtros</span>
                 </button>
             </div>
 
@@ -509,9 +509,40 @@
             <p class="modal-linha"><strong>Endereço:</strong> <span id="modal-endereco"></span></p>
             <p class="modal-linha"><strong>Horário:</strong> <span id="modal-horario"></span></p>
             <p class="modal-linha"><strong>Telefone:</strong> <span id="modal-telefone"></span></p>
-            <a id="modal-mapa" class="modal-mapa" href="#" target="_blank" rel="noopener noreferrer">Abrir no Google
-                Maps</a>
+            <div class="modal-acoes">
+                <button type="button" class="modal-voltar" id="modal-voltar">Voltar</button>
+                <a id="modal-mapa" class="modal-mapa" href="#" target="_blank" rel="noopener noreferrer">Abrir no Google
+                    Maps</a>
+            </div>
         </div>
+    </dialog>
+
+    <dialog class="modal modal-filtros" id="modal-filtros" aria-labelledby="titulo-filtros">
+        <button type="button" class="modal-fechar" id="fechar-filtros" aria-label="Fechar filtros">&times;</button>
+        <form class="filtros-conteudo" id="form-filtros">
+            <h2 id="titulo-filtros">Filtros</h2>
+
+            <label for="filtro-ordenacao">Ordenar por</label>
+            <select id="filtro-ordenacao" name="ordenacao">
+                <option value="padrao">Ordem padrão</option>
+                <option value="az">Alfabética (A a Z)</option>
+                <option value="za">Alfabética inversa (Z a A)</option>
+            </select>
+
+            <label for="filtro-tipo">Tipo de unidade</label>
+            <select id="filtro-tipo" name="tipo">
+                <option value="todos">Todos</option>
+                <option value="AMA">AMA</option>
+                <option value="CER">CER</option>
+                <option value="UBS">UBS</option>
+                <option value="UPA">UPA</option>
+            </select>
+
+            <div class="filtros-acoes">
+                <button type="button" class="filtros-limpar" id="limpar-filtros">Limpar filtros</button>
+                <button type="submit" class="filtros-aplicar">Aplicar filtros</button>
+            </div>
+        </form>
     </dialog>
 
     <script src="Js/dados.js"></script>
